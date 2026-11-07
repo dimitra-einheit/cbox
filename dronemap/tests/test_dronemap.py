@@ -103,6 +103,21 @@ class TestFlightPlan(unittest.TestCase):
             self.assertLess(w.pitch, -20)
             self.assertRegex(waypoint_row(w), LITCHI_RX)
 
+    def test_stop_and_shoot_one_waypoint_per_photo(self):
+        moving = build_plan("t", PLOT, CAM, preset="detail", grids="A")
+        hover = build_plan("t", PLOT, CAM, preset="detail", grids="A", stop_and_shoot=True)
+        self.assertEqual(hover.grids[0].n_lines, moving.grids[0].n_lines)
+        n_wp = sum(len(m.waypoints) for m in hover.grids[0].missions)
+        self.assertEqual(n_wp, hover.grids[0].photos)
+        self.assertEqual(hover.grids[0].photos, moving.grids[0].photos)
+        for m in hover.grids[0].missions:
+            self.assertLessEqual(len(m.waypoints), 99)
+            for w in m.waypoints:
+                self.assertIn((1, 0), w.actions)  # take-photo action at every waypoint
+                self.assertEqual(w.dist_interval, -1.0)
+                self.assertRegex(waypoint_row(w), LITCHI_RX)
+        self.assertGreater(sum(m.est_time_s for m in hover.missions), 1.5 * sum(m.est_time_s for m in moving.missions))
+
     def test_speed_capped_by_photo_interval(self):
         plan = build_plan("t", PLOT, CAM, preset="detail", speed=8.0, grids="A")
         spacing = plan.grids[0].photo_spacing

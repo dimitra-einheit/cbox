@@ -47,6 +47,8 @@ def _add_plan(sub):
                    help="Altitude above ground (Litchi terrain follow) instead of above take-off point")
     p.add_argument("--grids", help="Only these grids, e.g. 'A' or 'A,B'")
     p.add_argument("--oblique-pitch", type=float, help="Gimbal pitch for oblique grids (survey -70, detail -60)")
+    p.add_argument("--stop-and-shoot", action="store_true",
+                   help="Hover for every photo (one waypoint per photo): sharpest and most robust, 2-3x more flying")
     p.add_argument("--orbit", action="append", default=[], metavar="LAT,LON[,RADIUS[,TARGET_H]]",
                    help="Add an orbit (circle of photos) around a building/tree. Repeatable.")
     p.add_argument("--orbit-file", help="KML/text file of points to orbit")
@@ -88,7 +90,8 @@ def cmd_plan(a) -> int:
                       battery_minutes=a.battery_minutes, home=home,
                       altitude_mode="agl" if a.agl else "relative", grids=a.grids,
                       oblique_pitch=a.oblique_pitch, orbits=orbits, orbit_alts=alts,
-                      orbit_photos=a.orbit_photos, orbit_target_height=a.orbit_target_height)
+                      orbit_photos=a.orbit_photos, orbit_target_height=a.orbit_target_height,
+                      stop_and_shoot=a.stop_and_shoot)
     files = write_plan(plan, out)
     info("")
     info(summary_text(plan, files))

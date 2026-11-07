@@ -52,12 +52,12 @@ def write_kml(plan: Plan, path: str) -> str:
         # approximate photo positions (hidden by default)
         doc.folder(f"Grid {g.name} photo positions (approx.)", visible=False)
         for m in g.missions:
-            for a, b in zip(m.waypoints[::2], m.waypoints[1::2]):
-                length = math.hypot(b.x - a.x, b.y - a.y)
-                n = int(length // g.photo_spacing) + 1
+            for a, b in m.segments:
+                length = math.hypot(b[0] - a[0], b[1] - a[1])
+                n = int(length / g.photo_spacing + 1e-6) + 1
                 for k in range(n):
                     t = (k * g.photo_spacing) / length if length > 0 else 0.0
-                    lat, lon = plan.proj.to_latlon(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y))
+                    lat, lon = plan.proj.to_latlon(a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]))
                     doc.point("", lat, lon, "photo", visible=False)
         doc.end_folder()
     for o in plan.orbits:
@@ -127,7 +127,9 @@ def summary_text(plan: Plan, files: dict | None = None) -> str:
     add(f"Ground detail    : {cam.gsd_m(plan.altitude) * 100:.2f} cm per pixel; photo covers "
         f"{across:.0f} m x {along:.0f} m")
     add(f"Overlap          : {plan.front * 100:.0f}% front, {plan.side * 100:.0f}% side")
-    add(f"Speed            : {plan.speed:.1f} m/s")
+    add(f"Speed            : {plan.speed:.1f} m/s"
+        + ("  (stop-and-shoot: hover for every photo)" if plan.stop_and_shoot else
+           "  (photos taken on the move, every N metres)"))
     add(f"Battery budget   : {plan.battery_s / 60:.0f} min flying per mission (change with --battery-minutes)")
     add("")
     total_photos = 0
@@ -166,6 +168,9 @@ def summary_text(plan: Plan, files: dict | None = None) -> str:
     add(f"    Finish Action = RTH, Cruising Speed = {plan.speed:.0f} m/s. Missions > Save (use the CSV name).")
     add(" 3. Repeat for each CSV. Open the preview KML in Google Earth Pro to see everything together.")
     add(" 4. In the Litchi app (Waypoints mode) open the saved missions once while online so they sync.")
+    if not plan.stop_and_shoot:
+        add(" 5. FIRST TIME ONLY: fly the first mission alone, then run 'dronemap photos' on its photos. If it")
+        add("    did not take a photo every few metres along each line, re-plan with --stop-and-shoot.")
     add("")
     add("CAMERA SETTINGS (Litchi camera menu, before the first mission)")
     add(" - Photo: JPEG (not RAW), aspect 3:2, single shot.")

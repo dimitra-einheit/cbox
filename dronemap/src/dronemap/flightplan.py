@@ -93,6 +93,7 @@ class Mission:
     est_photos: int = 0
     lines: int = 0
     distance_m: float = 0.0
+    segments: list = field(default_factory=list)  # [((x1, y1), (x2, y2)), ...] flight lines in local metres
 
 
 @dataclass
@@ -136,6 +137,7 @@ class Plan:
     buffer_side: float
     buffer_along: float
     battery_s: float
+    stop_and_shoot: bool = False
     grids: list = field(default_factory=list)
     orbits: list = field(default_factory=list)
     warnings: list = field(default_factory=list)
@@ -283,18 +285,47 @@ def plan_grid(plan: Plan, name: str, heading_offset: float, pitch: float, label:
     heading = (plan.base_heading + heading_offset) % 360.0
     raw = _grid_lines(poly_xy, heading, line_spacing, across, plan.buffer_side, plan.buffer_along)
     ordered = _order_lines(raw, plan.home_xy)
+    n_lines = len(ordered)
+
+    def photos_on(a, b):
+        return int(math.hypot(b[0] - a[0], b[1] - a[1]) / photo_spacing + 1e-6) + 1
+
+    if plan.stop_and_shoot:
+        # one waypoint per photo (hover + shoot); split very long lines so a mission stays <= 99 waypoints
+        pieces = []
+        for a, b in ordered:
+            n = photos_on(a, b)
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            per = 90
+            for s0 in range(0, n, per):
+                s1 = min(n, s0 + per) - 1
+                t0, t1 = s0 * photo_spacing / L if L else 0.0, s1 * photo_spacing / L if L else 0.0
+                pieces.append(((a[0] + t0 * (b[0] - a[0]), a[1] + t0 * (b[1] - a[1])),
+                               (a[0] + t1 * (b[0] - a[0]), a[1] + t1 * (b[1] - a[1]))))
+        ordered = pieces
 
     def line_wps(a, b):
         hd = math.degrees(math.atan2(b[0] - a[0], b[1] - a[1])) % 360.0
+        if plan.stop_and_shoot:
+            n = photos_on(a, b)
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            out = []
+            for k in range(n):
+                t = k * photo_spacing / L if L else 0.0
+                out.append(Waypoint(a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), plan.altitude, hd, pitch,
+                                    plan.speed, actions=[(ACT_STAY, 500), (ACT_PHOTO, 0)]))
+            return out
         w1 = Waypoint(a[0], a[1], plan.altitude, hd, pitch, plan.speed, dist_interval=photo_spacing)
         w2 = Waypoint(b[0], b[1], plan.altitude, hd, pitch, plan.speed, dist_interval=-1.0)
         return [w1, w2]
 
-    def photos_on(a, b):
-        return int(math.hypot(b[0] - a[0], b[1] - a[1]) // photo_spacing) + 1
+    def cost(segs):
+        wps = [w for s in segs for w in line_wps(*s)]
+        if len(wps) > 99:
+            return float("inf")
+        return estimate_mission(plan.home_xy, wps)[0]
 
-    missions = _balanced_split(ordered, lambda segs: estimate_mission(
-        plan.home_xy, [w for s in segs for w in line_wps(*s)])[0], plan.battery_s, max_lines=49)
+    missions = _balanced_split(ordered, cost, plan.battery_s, max_lines=49)
 
     out_missions = []
     total_photos = 0
@@ -304,14 +335,14 @@ def plan_grid(plan: Plan, name: str, heading_offset: float, pitch: float, label:
         ph = sum(photos_on(*s) for s in segs)
         total_photos += ph
         m = Mission(f"{name}{k}", "grid", f"Grid {name} ({label}) part {k}/{len(missions)}", wps,
-                    est_time_s=t, est_photos=ph, lines=len(segs), distance_m=dist)
+                    est_time_s=t, est_photos=ph, lines=len(segs), distance_m=dist, segments=list(segs))
         if t > plan.battery_s:
             plan.warnings.append(
                 f"Mission {m.name} needs about {t / 60:.1f} min, more than the {plan.battery_s / 60:.0f} min "
                 "battery budget, because a single flight line is that long. Split the plot or raise --battery-minutes."
             )
         out_missions.append(m)
-    return GridInfo(name, label, heading, pitch, line_spacing, photo_spacing, len(ordered), total_photos,
+    return GridInfo(name, label, heading, pitch, line_spacing, photo_spacing, n_lines, total_photos,
                     out_missions)
 
 
@@ -374,7 +405,7 @@ def build_plan(name: str, polygon_latlon, camera: Camera, preset: str = "survey"
                heading: float | None = None, buffer: float | None = None, battery_minutes: float = 12.0,
                home=None, altitude_mode: str = "relative", grids: str | None = None,
                oblique_pitch: float | None = None, orbits=None, orbit_alts=(20.0, 35.0),
-               orbit_photos: int = 36, orbit_target_height: float = 2.0) -> Plan:
+               orbit_photos: int = 36, orbit_target_height: float = 2.0, stop_and_shoot: bool = False) -> Plan:
     if preset not in PRESETS:
         raise ValueError(f"Unknown preset {preset}")
     P = PRESETS[preset]
@@ -405,11 +436,14 @@ def build_plan(name: str, polygon_latlon, camera: Camera, preset: str = "survey"
     plan = Plan(name=name, preset=preset, camera=camera, polygon=list(polygon_latlon), proj=proj, home=tuple(home),
                 home_xy=home_xy, altitude=altitude, altitude_mode=altitude_mode, front=front, side=side, speed=speed,
                 base_heading=base_heading, buffer_side=buffer_side, buffer_along=buffer_along,
-                battery_s=battery_minutes * 60.0)
+                battery_s=battery_minutes * 60.0, stop_and_shoot=stop_and_shoot)
 
-    # Photo interval check: the camera needs ~2.5 s between JPEGs.
+    # Photo interval check: the camera needs ~2.5 s between JPEGs (not an issue when hovering for each photo).
     interval = photo_spacing / speed
-    if interval < camera.min_photo_interval_s:
+    if stop_and_shoot:
+        plan.warnings.append("Stop-and-shoot: the drone hovers for every photo. Sharpest results, but 2-3x more "
+                             "flying. Process with --no-rolling-shutter.")
+    elif interval < camera.min_photo_interval_s:
         new_speed = math.floor(photo_spacing / camera.min_photo_interval_s * 10) / 10.0
         plan.warnings.append(
             f"At {speed:.1f} m/s the camera would need a photo every {interval:.1f} s; the Mavic 2 Pro needs "
@@ -417,7 +451,7 @@ def build_plan(name: str, polygon_latlon, camera: Camera, preset: str = "survey"
         )
         plan.speed = speed = new_speed
     blur_px = speed * camera.rolling_shutter_ms / 1000.0 / camera.gsd_m(altitude)
-    if blur_px > 25:
+    if blur_px > 25 and not stop_and_shoot:
         plan.warnings.append(
             f"Rolling-shutter skew about {blur_px:.0f} px at {speed:.1f} m/s. ODM corrects this "
             "(dronemap process turns on --rolling-shutter), but slower is sharper."

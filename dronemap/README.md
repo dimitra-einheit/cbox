@@ -70,6 +70,10 @@ Plans are saved in `~/drone/plans/bagrod/`. Open `bagrod_preview.kml` in Google 
 `bagrod_summary.txt` to import each CSV into **Litchi Mission Hub** (flylitchi.com/hub) and set
 Heading Mode *Custom*, Path Mode *Straight Lines*, Finish Action *RTH*.
 
+**First time:** fly only mission A1, then run `dronemap photos` on those photos. Litchi should take a photo every
+~17 m along each line while the drone keeps flying. If it doesn't, re-plan with `--stop-and-shoot`. The drone
+then hovers for every photo: more batteries, but foolproof. Process those photos with `--no-rolling-shutter`.
+
 **When to fly:** bare fields give the best ground model (crops and long grass become "ground").
 Overcast days or 10:00-14:00 are best. Avoid strong wind.
 
@@ -168,7 +172,7 @@ dronemap process ~/drone/projects/tigadda --preset detail --splat
 
 ## 5. Commands at a glance
 ```
-dronemap plan BOUNDARY [--preset survey|detail|quick] [--altitude M] [--home LAT,LON] [--orbit LAT,LON[,R]] [--battery-minutes 12] [--agl]
+dronemap plan BOUNDARY [--preset survey|detail|quick] [--altitude M] [--home LAT,LON] [--orbit LAT,LON[,R]] [--battery-minutes 12] [--agl] [--stop-and-shoot]
 dronemap photos IMAGES_DIR [--plan NAME_plan.json]
 dronemap process PROJECT [--preset survey|detail] [--quality fast|standard|max] [--splat] [--gcp FILE] [--boundary KML] [--dry-run]
 dronemap splat PROJECT [--iters 30000] [--downscale auto|1|2|4] [--resume]
