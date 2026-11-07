@@ -97,7 +97,7 @@ The command can be stopped (Ctrl+C) and resumed by running it again. Results lan
 ```bash
 dronemap site ~/drone/projects/bagrod --boundary ~/maps/bagrod.kml
 ```
-Outputs are in `projects/bagrod/dronemap/site/`:
+Outputs are in `~/drone/projects/bagrod/dronemap/site/`:
 - `site_overview.png` shows contours, drainage lines, natural low spots (L1, L2, ...) and **where water leaves the plot** (E1, E2, ...).
   A pond just upstream of the biggest exit catches the most runoff.
 - `site.kmz` opens in Google Earth with all layers. `contours.dxf` is for an engineer/contractor (AutoCAD/QCAD).
@@ -121,7 +121,7 @@ Or try a rectangle quickly: `--center 23.xxxxx,78.xxxxx --size 60x40 --rotation 
 | `--excavator-rate 60`, `--cost-per-hour` | Machine output (m³/h) and hire rate for time and cost |
 | `--stl --exaggeration 2` | 3D-printable terrain block (fits the A1 bed) |
 
-Outputs (in `projects/bagrod/dronemap/pond/`):
+Outputs (in `~/drone/projects/bagrod/dronemap/pond/`):
 - `pond_report.md` with levels, capacity (m³, litres, acre-feet), stage-capacity table, cut, fill, surplus soil
   (and how many trolley loads), excavator hours and cost. It also says whether the pond's own catchment will fill it.
 - `pond_plan.png` (cut/fill map) and `pond_sections.png` (long and cross sections).
@@ -136,7 +136,7 @@ terrain to sculpt in Blender (steps are printed). Then
 within about 5-10 cm across the plot, which is what volumes and slopes need. Absolute height above sea level can
 be several metres off.
 Before construction, check 4-5 points with a dumpy level. Or lay out 5-8 marked targets (60x60 cm
-black/white squares), have a local surveyor measure them with DGPS, put them in `projects/bagrod/gcp_list.txt`
+black/white squares), have a local surveyor measure them with DGPS, put them in `~/drone/projects/bagrod/gcp_list.txt`
 ([ODM format](https://docs.opendronemap.org/gcp/)) and reprocess. `dronemap process` uses that file automatically.
 
 ---
@@ -152,20 +152,20 @@ dronemap plan ~/maps/tigadda.kml --preset detail --home 23.xxxxx,78.xxxxx \
 - `--orbit LAT,LON[,RADIUS]` adds a circle of 36 photos at 20 m and 35 m around a building (default radius 25 m).
   Add one per building or feature tree. **Walk each orbit circle first: it must be clear of trees and wires at
   that height.**
-- Expect ~8 missions and ~900+ photos for 4 acres with two orbits. Taller trees than 40 m? Use `--altitude 55`.
+- Expect ~8 missions and ~900+ photos for 4 acres with two orbits. If any tree or mast is taller than ~35 m, use `--altitude 55`.
 
 ### Process + splat (overnight)
 ```bash
 dronemap process ~/drone/projects/tigadda --preset detail --splat
 ```
 - ODM builds the detailed mesh (`odm_texturing/odm_textured_model_geo.glb`).
-- OpenSplat then trains the splat on the Mac GPU: `projects/tigadda/dronemap/splat/splat.ply`. It saves progress
+- OpenSplat then trains the splat on the Mac GPU: `~/drone/projects/tigadda/dronemap/splat/splat.ply`. It saves progress
   every 5000 steps. If stopped, run `dronemap splat ~/drone/projects/tigadda --resume`.
 - Quick preview first: `dronemap splat ~/drone/projects/tigadda --iters 7000`.
 - **View and clean the splat** at https://playcanvas.com/supersplat/editor. Drag in `splat.ply`, crop floaters, and
   export a compressed file for the Sanctuary website. The editor runs in your browser; nothing is uploaded unless
   you publish.
-- `--quality max` squeezes out more detail. It is slower and can run out of memory above ~500 photos; if ODM
+- `--quality max` squeezes out more detail. It is slower and may run out of memory on big photo sets; if ODM
   stops with exit code 137, raise Docker's memory or go back to standard.
 
 ---
