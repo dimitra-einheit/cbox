@@ -1,0 +1,18 @@
+# local environment and build tools (created by setup scripts)
+.venv/
+tools/
+__pycache__/
+*.pyc
+
+# your data - keep it out of git
+plans/
+projects/
+*.JPG
+*.jpg
+*.DNG
+*.tif
+*.laz
+*.glb
+*.ply
+*.splat
+*.kmz

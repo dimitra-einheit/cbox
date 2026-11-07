@@ -1,0 +1,6 @@
+# dronemap Python dependencies (installed into .venv by the setup script)
+numpy>=1.26
+scipy>=1.11
+rasterio>=1.3.9
+matplotlib>=3.8
+pillow>=10.0

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Example plot (made-up, near Rahatgarh) - replace with your own</name>
+<Placemark><name>Example plot</name><Polygon><outerBoundaryIs><LinearRing><coordinates>
+78.37800,23.78000,0 78.38050,23.78040,0 78.38080,23.78230,0 78.37820,23.78210,0 78.37800,23.78000,0
+</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>

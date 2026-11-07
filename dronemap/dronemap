@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# dronemap launcher (macOS / Linux). Uses the toolkit's own Python environment in .venv,
+# created by setup/setup_mac.sh. Works when symlinked onto your PATH.
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+HERE="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+
+PY="$HERE/.venv/bin/python"
+if [ ! -x "$PY" ]; then
+  echo "dronemap is not set up yet. Run:  $HERE/setup/setup_mac.sh" >&2
+  exit 1
+fi
+export PYTHONPATH="$HERE/src${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PY" -m dronemap "$@"
